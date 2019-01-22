@@ -1,0 +1,1 @@
+This repository has scripts that enable serializing a CSV file that contains columns for site IDs, datetime, and n variables that is described by and Agave Metadata "Timeseries" document.  The rows are serialized to Agave Metadata "Observation" documents that contain associations with the corresponding Metadata "Site" and "Variable" documents referenced in the "Timeseries".
