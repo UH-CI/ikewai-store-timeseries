@@ -34,7 +34,7 @@ def getMetadata(token, uuid):
         'content-type': "application/json",
     }
     res = requests.get('https://'+endpoint+'/meta/v2/data/'+uuid, headers=headers,verify=False)
-    print(res.content)
+    #print(res.content)
     resp = json.loads(res.content)
     return resp['result']
 
@@ -53,8 +53,9 @@ def createMetadata(token, data):
         'content-type': "application/json",
     }
     res = requests.post('https://'+endpoint+'/meta/v2/data/', json=data, headers=headers,verify=False)
+    print(res.content)
     resp = json.loads(res.content)
-    return resp
+    return resp['result']
 
 #permission needs to be READ READ-WRITE or ALL
 def updateMetadataPem(token, uuid, username, permission):
@@ -83,32 +84,60 @@ def parseTimeseries(token,uuid,filepath):
     variables={};
     sites={};
     this_df = pd.read_csv(filepath);
+    #this should fetch a Timeseries parsing template
     timeseries = getMetadata(token, uuid);
     #change timeseries dataframe column header to variablename+units
-    var_list = []
+    var_list = [];
     for myvar in timeseries['value']['columns']:
-      var_list.append(myvar['variable_id'])
-      print(myvar['variable_id'])
-      print(myvar['column_number'])
-      variables[myvar['variable_id']] = getMetadata(token,myvar['variable_id'])
-      print(variables[myvar['variable_id']]['value']['variable_name'])
+      var_list.append(myvar['variable_id']);
+      print(myvar['variable_id']+":"+str(myvar['column_number']));
+      variables[myvar['variable_id']] = getMetadata(token,myvar['variable_id']);
+      print(variables[myvar['variable_id']]['value']['variable_name']);
       this_df.rename(columns={this_df.columns[myvar['column_number']-1]:variables[myvar['variable_id']]['value']['variable_name']+':'+variables[myvar['variable_id']]['value']['unit']}, inplace=True)
-    this_data = json.loads(this_df.to_json(orient='records'))
+    this_data = json.loads(this_df.to_json(orient='records'));
+    #create our timeseries instance object
+    this_timeseries = {'name':'Timeseries'};
+    this_timeseries['associationIds']= var_list;
+    this_timeseries['value'] = timeseries['value'];
+    this_timeseries['value']['variables'] =variables;
+    this_timeseries['value']['filename'] = filepath;
+    this_timeseries['permissions'] = [{"username":"jgeis","permission":"ALL"},{"username":"ikewai-admin","permission":"ALL"},{"username":"ikeadmin","permission":"ALL"},{"username":"public","permission":"READ"}]
+    new_timeseries = createMetadata(token,this_timeseries);
+    site_list = [];
     for row in this_data:
-        this_obs = {'name':'Observation'}
-        print(row)
+        this_obs = {'name':'Observation'};
+        print(row);
         if row['site-id'] in sites:
             #do nothing
-            print("already exists")
+            print("already exists");
         else:
             sites[row['site-id']] = listMetadata(token, "{'name':'Site','value.id':'"+row['site-id']+"'}", 1, 0)[0]
-            print(sites[row['site-id']])
+            site_list.append(sites[row['site-id']]['uuid'])
+            print(sites[row['site-id']]);
         #create Observation record
-        this_obs['associationIds']= var_list;
-        this_obs['associationIds'].append(sites[row['site-id']]['uuid'])
+        assc_list = []
+        assc_list = var_list;
+        assc_list.append(sites[row['site-id']]['uuid']);
+        assc_list.append(new_timeseries['uuid']);
+        assc_list = list(set(assc_list))
+        this_obs['associationIds']= assc_list;
+        #this_obs['associationIds']= var_list;
+        #this_obs['associationIds'].append(sites[row['site-id']]['uuid']);
+        #this_obs['associationIds'].append(new_timeseries['uuid']);
+        #this_obs['associationIds'].append(timeseries['uuid']);
         this_obs['value'] = row;
-        print(this_obs)
-        print(createMetadata(token,this_obs))
+        this_obs['permissions'] = [{"username":"jgeis","permission":"ALL"},{"username":"ikewai-admin","permission":"ALL"},{"username":"ikeadmin","permission":"ALL"},{"username":"public","permission":"READ"}]
+        print(this_obs);
+        print(createMetadata(token,this_obs));
+    new_ts_assoc = []
+    new_ts_assoc = new_timeseries['associationIds']
+    print("********************")
+    print(new_ts_assoc)
+    new_ts_assoc = new_ts_assoc + site_list;
+    new_ts_assoc = new_ts_assoc + site_list;
+    print(new_ts_assoc)
+    new_timeseries['associationIds'] = list(set(new_ts_assoc))
+    print(updateMetadata(token,new_timeseries['uuid'],new_timeseries));
     #update site with variable associations
 
 def main(argv):
