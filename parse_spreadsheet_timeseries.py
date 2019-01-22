@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[35]:
 
-
+import sys, getopt
+import os.path
+import fileinput
 import requests
 import json
 import urllib
@@ -11,20 +12,11 @@ import  urllib.parse
 import pandas as pd
 import getpass
 from requests.auth import HTTPBasicAuth
-endpoint = 'agaveauth.its.hawaii.edu'
-token = 'eb4b2d378355734dfa71d4e95cb985'
 
-
-# In[36]:
-
-
+#***************AGAVE API FUNCTIONS******************************
 def getTokenIkeWai(username):
     res = requests.get('https://'+endpoint+':8000', auth=HTTPBasicAuth(username, getpass.getpass()))
     return res
-
-
-# In[37]:
-
 
 def listMetadata(token, query="", limit=10, offset=0):
     safe_query = urllib.parse.quote(query.encode('utf8'))
@@ -36,22 +28,15 @@ def listMetadata(token, query="", limit=10, offset=0):
     resp = json.loads(res.content)
     return resp['result']
 
-
-# In[38]:
-
-
 def getMetadata(token, uuid):
     headers = {
         'authorization': "Bearer " + token,
         'content-type': "application/json",
     }
     res = requests.get('https://'+endpoint+'/meta/v2/data/'+uuid, headers=headers,verify=False)
+    print(res.content)
     resp = json.loads(res.content)
     return resp['result']
-
-
-# In[39]:
-
 
 def updateMetadata(token, uuid, data):
     headers = {
@@ -62,10 +47,6 @@ def updateMetadata(token, uuid, data):
     resp = json.loads(res.content)
     return resp
 
-
-# In[128]:
-
-
 def createMetadata(token, data):
     headers = {
         'authorization': "Bearer " + token,
@@ -74,10 +55,6 @@ def createMetadata(token, data):
     res = requests.post('https://'+endpoint+'/meta/v2/data/', json=data, headers=headers,verify=False)
     resp = json.loads(res.content)
     return resp
-
-
-# In[40]:
-
 
 #permission needs to be READ READ-WRITE or ALL
 def updateMetadataPem(token, uuid, username, permission):
@@ -89,11 +66,6 @@ def updateMetadataPem(token, uuid, username, permission):
     res = requests.post('https://'+endpoint+'/meta/v2/data/'+uuid+'/pems/'+username, json=data, headers=headers,verify=False)
     resp = json.loads(res.content)
     return resp
-    
-
-
-# In[41]:
-
 
 def getMetadataPems(token,uuid):
     headers = {
@@ -105,8 +77,7 @@ def getMetadataPems(token,uuid):
     return resp
 
 
-# In[158]:
-
+#********************
 
 def parseTimeseries(token,uuid,filepath):
     variables={};
@@ -117,7 +88,7 @@ def parseTimeseries(token,uuid,filepath):
     var_list = []
     for myvar in timeseries['value']['columns']:
       var_list.append(myvar['variable_id'])
-      print(myvar['variable_id']) 
+      print(myvar['variable_id'])
       print(myvar['column_number'])
       variables[myvar['variable_id']] = getMetadata(token,myvar['variable_id'])
       print(variables[myvar['variable_id']]['value']['variable_name'])
@@ -137,247 +108,39 @@ def parseTimeseries(token,uuid,filepath):
         this_obs['associationIds'].append(sites[row['site-id']]['uuid'])
         this_obs['value'] = row;
         print(this_obs)
-        #print(createMetadata(token,this_obs))
+        print(createMetadata(token,this_obs))
     #update site with variable associations
-        
 
-
-# In[152]:
-
-
-meta[0]
-
-
-# In[ ]:
-
-
-vmyar = getMetadata(token,'2748921731548844521-242ac1111-0001-012')
-
-
-# In[ ]:
-
-
-vmyar
-
-
-# In[ ]:
-
-
-tempvar = vmyar
-tempvar['value']['name']="varsOne"
-
-
-# In[ ]:
-
-
-tempvar['value'] = vmyar['value']
-tempvar['value']['name']="vars1"
-tempvar['associationIds'] = vmyar['associationIds']
-tempvar
-
-
-# In[ ]:
-
-
-upvar = updateMetadata(token,'2748921731548844521-242ac1111-0001-012',tempvar)
-
-
-# In[ ]:
-
-
-upvar['result']['value']
-
-
-# In[ ]:
-
-
-pems = getMetadataPems(token,'2748921731548844521-242ac1111-0001-012')
-
-
-# In[ ]:
-
-
-pems
-
-
-# In[ ]:
-
-
-uppems = updateMetadataPem(token,'2748921731548844521-242ac1111-0001-012','public','READ')
-
-
-# In[ ]:
-
-
-uppems
-
-
-# In[1]:
-
-
-import pandas as pd
-
-
-# In[154]:
-
-
-df = pd.read_csv('ikewai-spreadtest.csv')
-
-
-# In[7]:
-
-
-js = df.to_json(orient='records')
-
-
-# In[8]:
-
-
-js
-
-
-# In[12]:
-
-
-myjs = json.loads(js)
-
-
-# In[13]:
-
-
-myjs[0]
-
-
-# In[21]:
-
-
-ts = getMetadata(token,'9051709891106968041-242ac1111-0001-012')
-
-
-# In[22]:
-
-
-ts
-
-
-# In[55]:
-
-
-df.columns[0]
-
-
-# In[ ]:
-
-
-{
-  'name':'Observation',
-  'associationIds':['7419369018632835561-242ac1111-0001-012','']
-  'value':{'time':'datetime','Temperature-degree(C)':'1','Chloride-percent(%)':'2'}
-}
-
-
-# In[ ]:
-
-
-parse timeseries metadata - fetch variable metadata objects
-replace column header with variableName + unit combo
-convert dataframe to json orienting with 'record'
-iterate through json array - fetch site metadata by ID -store in a site hash indexed by site ID(if exists don't fetch)
-build Observation metadata obj associating variables, site and timseries, set permissions and create metadata
-update timeseries with site associations
-
-
-# In[27]:
-
-
-
-
-
-# In[28]:
-
-
-
-
-
-# In[33]:
-
-
-
-
-
-# In[48]:
-
-
-ts = getMetadata(token,'9051709891106968041-242ac1111-0001-012')
-
-
-# In[60]:
-
-
-len(ts['value']['columns'])
-variables = {}
-for myvar in ts['value']['columns']:
-  print(myvar['variable_id'])
-  print(myvar['column_number'])
-  variables[myvar['variable_id']] = getMetadata(token,myvar['variable_id'])
-  print(variables[myvar['variable_id']]['value']['variable_name'])
-  df.rename(columns={df.columns[myvar['column_number']-1]:variables[myvar['variable_id']]['value']['variable_name']+':'+variables[myvar['variable_id']]['value']['unit']}, inplace=True)
-df
-
-
-# In[75]:
-
-
-df.rename(columns={df.columns[2]:"somethingelse"},inplace=True)
-df.rename(columns={df.columns[3]:"anothersomething"},inplace=True)
-
-
-# In[86]:
-
-
-mine =  listMetadata(token, "{'name':'Site','value.id':'its-fountain1'}", 1, 0)
-
-
-# In[89]:
-
-
-mine[0]['uuid']
-
-
-# In[103]:
-
-
-obs = []
-obs= variables.keys()
-
-
-# In[150]:
-
-
-myvar
-
-
-# In[155]:
-
-
-df.rename(columns={df.columns[myvar['column_number']-1]:variables[myvar['variable_id']]['value']['variable_name']+':'+variables[myvar['variable_id']]['value']['unit']}, inplace=True)
-df
-
-
-# In[ ]:
-
-
-
-
-
-# In[159]:
-
-
-parseTimeseries(token,'9051709891106968041-242ac1111-0001-012','ikewai-spreadtest.csv')
-
-
-# In[ ]:
-
-
-
-
+def main(argv):
+    global endpoint
+    endpoint=""
+    token=""
+    inputfile =""
+    uuid = ""
+    try:
+        opts, args = getopt.getopt(argv,"he:t:i:u",["endpoint=","token=","inputfile=","uuid="])
+    except getopt.GetoptError:
+        print('TRY parse_spreadsheet_timeseries.py -e <Agave endpoint> -t <Valid Agave Auth Token> -i <inputfile CSV> -u <Timeseries Metadata UUID>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print ('parse_spreadsheet_timeseries.py -e <Agave endpoint> -t <Valid Agave Auth Token> -i <inputfile CSV> -u <Timeseries Metadata UUID>')
+            sys.exit()
+        elif opt in ("-e", "--endpiont"):
+            endpoint= arg
+        elif opt in ("-t", "--token"):
+            token= arg
+        elif opt in ("-i", "--ifile"):
+            inputfile = arg
+        elif opt in ("-u", "--uuid"):
+            uuid = arg
+        else:
+            assert False, "unhandled option"
+    print(endpoint)
+    print(token)
+    print(inputfile)
+    print(uuid)
+    parseTimeseries(token,uuid,inputfile)
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
